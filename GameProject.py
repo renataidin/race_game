@@ -1,5 +1,6 @@
 import pygame
 import random
+import mysql.connector
 
 pygame.init()
 
@@ -16,6 +17,12 @@ WHITE = (255, 255, 255)
 ORANGE = (255, 165, 0)
 GREEN = (0, 255, 0)
 YELLOW = (255, 255, 0)
+
+dbconfig = {'host': '127.0.0.1',
+            'user': 'root',
+            'password': '4152',
+            'database': 'game_results'}
+
 
 speed_x = 0
 speed_y = 0
@@ -35,6 +42,7 @@ repair_score = 0
 
 car_set = ["lamborgini", "porsche", "ferrari"]
 choosed_car = random.choice(car_set)
+index_car = car_set.index(choosed_car)
 
 ferrari = pygame.image.load("background.jpeg")
 fon = pygame.image.load("background.jpeg")
@@ -77,14 +85,22 @@ road = []
 for i in range(10, WIDTH, 100):
     road.append([i, 220, 50, 10])
 
+font =pygame.font.SysFont('Arial', 32)
+input_box = pygame.Rect(330, 150, 140, 50)
+active = False
+player_name = ''
+color = 'red'
+
 while run:
     if gamemode == "menu":
+        reg = False
+        player_name = ''
         for i in pygame.event.get():
             if i.type == pygame.QUIT:
                 run = False
             elif i.type == pygame.MOUSEBUTTONDOWN:
                 if i.button == 1 and rect_start.collidepoint(i.pos):
-                    gamemode = "game"
+                    gamemode = "user"
                 elif i.button == 1 and rect_exit.collidepoint(i.pos):
                     run = False
         window.blit(fon,(0,0))
@@ -95,6 +111,47 @@ while run:
         car_rect.top = 20
         car_rect.left = 20
         block_rect.left = WIDTH
+
+    elif gamemode == "user":
+        window.fill((0, 0, 0))
+
+        tabel = font_status.render("Добро пожаловать в игру: ", True, RED)
+        window.blit (tabel, (280, 50))
+
+        for i in pygame.event.get():
+            if i.type == pygame.QUIT:
+                run = False
+            if i.type == pygame.MOUSEBUTTONDOWN:
+                if input_box.collidepoint(i.pos):
+                    active = True
+                    color = 'green'
+                else:
+                    active = False
+                    color = 'red'
+            if i.type == pygame.KEYDOWN:
+                if active:
+                    if i.key == pygame.K_RETURN:
+                        conn = mysql.connector.connect(**dbconfig)
+                        cursor = conn.cursor()
+                        SQL = '''select * from users where name_user= (%s)'''
+                        cursor.execute( SQL, (player_name,))
+                        car_name = cursor.fetchall()
+                        if len(car_name) == 0:
+                            reg = True
+
+                        cursor.close()
+                        conn.close()
+                        gamemode = "game"
+                    elif i.key == pygame.K_BACKSPACE:
+                        player_name = player_name[:-1]
+                    else:
+                        player_name += i.unicode
+        txt_surface = font.render(player_name, True, 'green')
+        width = max(200, txt_surface.get_width()+10)
+        input_box.w = width
+        input_box.x = (WIDTH - width) / 2
+        window.blit(txt_surface, (input_box.x+5, input_box.y+5))
+        pygame.draw.rect(window, color, input_box, 2)
     
     # elif gamemode == "choose_car":
     #     for i in pygame.event.get():
@@ -187,9 +244,15 @@ while run:
             gamemode = "gameover"
             damage=0
             frame_count = 0
-            file = open("total_score.txt", "a", encoding="utf-8")
-            file.write(choosed_car + ": " + str(distance) + "\n")
-            file.close()
+
+            conn = mysql.connector.connect(**dbconfig)
+            cursor = conn.cursor()
+            _SQL = '''insert into scores (scores, user_id) values (%s, %s)'''
+            cursor.execute(_SQL, (distance, index_car))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
         else:
             window.blit(block, block_rect)
             window.blit(car,car_rect)
@@ -211,6 +274,15 @@ while run:
         window.blit (label, (10, 420))
         window.blit(damage_label, (300, 420))
         window.blit (repair_score_label, (500, 420))
+
+        if not reg:
+            user_hello_text = font.render("WELCOME IN THE GAME, " + player_name, True,
+        YELLOW)
+            window.blit(user_hello_text, (250, 330))
+        else:
+            user_hello_text = font.render("Рады приветствовать Вас, " +
+        player_name, True, YELLOW)
+            window.blit(user_hello_text, (250, 330))
 
     elif gamemode == "gameover":
         for i in pygame.event.get():
@@ -242,10 +314,10 @@ while run:
         font = pygame.font.SysFont("arial", 20, bold=True)
         y = 50
         for score in last_scores:
-            text = font.render(score[:-1], True, BLACK)
-            text_rect = text.get_rect(center=(400, y))
-            pygame.draw.rect(window, YELLOW, text_rect)
-            window.blit(text, text_rect)
+            player_name = font.render(score[:-1], True, BLACK)
+            player_name_rect = player_name.get_rect(center=(400, y))
+            pygame.draw.rect(window, YELLOW, player_name_rect)
+            window.blit(player_name, player_name_rect)
             y += 40  
 
 
