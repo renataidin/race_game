@@ -309,39 +309,16 @@ while run:
                     gamemode = "menu"
         window.blit(score_fon, (0, 0))
 
-        # # show last 5 tries
-        # # window.fill(BLACK)
-        # scores = []
-        # with open("total_score.txt", "r") as file:
-        #     for line in file:
-        #         scores.append(line)
-        
-        # last_scores = scores[-5:]
-        
-        # font = pygame.font.SysFont("arial", 20, bold=True)
-        # y = 50
-        # for score in last_scores:
-        #     player_name = font.render(score[:-1], True, BLACK)
-        #     player_name_rect = player_name.get_rect(center=(400, y))
-        #     pygame.draw.rect(window, YELLOW, player_name_rect)
-        #     window.blit(player_name, player_name_rect)
-        #     y += 40  
-
         conn = mysql.connector.connect(**dbconfig)
         cursor = conn.cursor()
         SQL = '''SELECT scores.scores, users.name_user FROM scores JOIN users ON scores.user_id = users.id_user ORDER BY scores DESC LIMIT 5;'''
         cursor.execute(SQL)
         records = cursor.fetchall()
-        # list_records = []
-        # for i in records:
-        #     list_records.append(i)
         y_pos = 150
         for i in records:
             score_surf = font_style.render(str(i[0]) + " " + str(i[1]), True, WHITE)
             window.blit(score_surf, (80, y_pos))
             y_pos += 30
         
-
-
     pygame.display.update()
     clock.tick(FPS)
